@@ -762,8 +762,8 @@ class _DshUiImageBlockState extends State<DshUiImageBlock> with _Invoking {
             final ratio = _ratio ?? 16 / 9;
             var width = box.maxWidth;
             var height = width / ratio;
-            if (height > maxHeight) {
-              height = maxHeight;
+            if (height > DshUiImageBlock.maxHeight) {
+              height = DshUiImageBlock.maxHeight;
               width = height * ratio;
             }
             final provider = _provider(context, width);
