@@ -531,7 +531,11 @@
         "src": { "$ref": "#/$defs/imageSource" },
         "alt": { "$ref": "#/$defs/label" },
         "aspect": { "anyOf": [{ "type": "number", "minimum": 0.25, "maximum": 4 }, { "$ref": "#/$defs/binding" }] },
-        "caption": { "$ref": "#/$defs/label" }
+        "caption": { "$ref": "#/$defs/label" },
+        "tap": {
+          "$ref": "#/$defs/action",
+          "description": "Panel only. Makes the picture a pointer target: a tap invokes this action with args extended by { x, y, rx, ry } — x/y in the picture's own pixels (the picture's drawn size, not the device), rx/ry the same point as 0–1 fractions of the picture box. Lets a plugin turn a picture into a viewport it can drive."
+        }
       }
     },
     "color": {

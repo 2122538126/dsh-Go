@@ -694,13 +694,42 @@ class PluginImages extends InheritedWidget {
   bool updateShouldNotify(PluginImages old) => old.resolver != resolver;
 }
 
-class DshUiImageBlock extends StatelessWidget {
+class DshUiImageBlock extends StatefulWidget {
   const DshUiImageBlock({super.key, required this.node});
 
   final DshUiImage node;
 
   /// 图片最高多少（再高就按高度缩，居中）。
   static const maxHeight = 320.0;
+
+  @override
+  State<DshUiImageBlock> createState() => _DshUiImageBlockState();
+}
+
+class _DshUiImageBlockState extends State<DshUiImageBlock> with _Invoking {
+  DshUiImage get node => widget.node;
+
+  /// 点在图上的位置换算成 `{x, y, rx, ry}` 交给插件的 `tap` 动作。
+  Future<void> _tap(Offset at, double width, double height) async {
+    final tap = node.tap;
+    if (tap == null) return;
+    double ratio(double v, double extent) => extent <= 0 ? 0 : (v / extent).clamp(0.0, 1.0);
+    await invoke(
+      'tap',
+      PluginAction(
+        id: tap.id,
+        args: {
+          ...tap.args,
+          'x': at.dx.round(),
+          'y': at.dy.round(),
+          'rx': ratio(at.dx, width),
+          'ry': ratio(at.dy, height),
+        },
+        source: PluginActionSource.button,
+        path: '${node.path}.tap',
+      ),
+    );
+  }
 
   ImageProvider? _provider(BuildContext context, double width) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
@@ -753,11 +782,18 @@ class DshUiImageBlock extends StatelessWidget {
                   frame == null && !sync ? _Unavailable(width: width, height: height, quiet: true) : child,
               errorBuilder: (context, error, stack) => unavailable,
             );
+            final tappable = node.tap == null || !(DshUiPluginScope.maybeOf(context)?.interactive ?? false)
+                ? image
+                : GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (details) => _tap(details.localPosition, width, height),
+                    child: image,
+                  );
             return Center(
               child: Semantics(
                 image: true,
                 label: node.alt,
-                child: Squircle.clip(radius: DshUiMetrics.wellRadius, child: image),
+                child: Squircle.clip(radius: DshUiMetrics.wellRadius, child: tappable),
               ),
             );
           },

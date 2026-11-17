@@ -1,0 +1,77 @@
+# Builds a debug arm64 APK for the native-viewport experiment.
+#
+# This is a fork-only workflow: the upstream repository ships APKs from
+# tooling/build-apk.sh by hand and does not accept external pull requests.
+# It exists so a change can be tried on a second phone without a local
+# Flutter + Android toolchain.
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ego-native-view]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.47.7
+  NODE_VERSION: 24.22.1
+  GRADLE_VERSION: 9.3.1
+  TZ: Asia/Shanghai
+
+jobs:
+  apk:
+    name: Debug arm64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Flutter dependencies and Android paths
+        working-directory: app
+        run: |
+          flutter pub get --enforce-lockfile
+          printf 'sdk.dir=%s\nflutter.sdk=%s\n' "$ANDROID_HOME" "$FLUTTER_ROOT" > android/local.properties
+
+      - name: Analyze the files this branch touches
+        working-directory: app
+        run: |
+          flutter analyze --no-pub lib/ui/chat/dsh_ui
+
+      - name: Build the debug arm64 APK
+        run: |
+          bash tooling/build-apk.sh --debug -f arm64
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-go-arm64-debug
+          path: app/build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 7
