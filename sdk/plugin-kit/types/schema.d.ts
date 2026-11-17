@@ -355,6 +355,8 @@ export interface ViewImage {
   alt?: ViewLabel
   aspect?: number | ViewBinding
   caption?: ViewLabel
+  /** Panel only. Makes the picture a pointer target: a tap invokes this action with args extended by { x, y, rx, ry } — x/y in the picture's own pixels (the picture's drawn size, not the device), rx/ry the same point as 0–1 fractions of the picture box. Lets a plugin turn a picture into a viewport it can drive. */
+  tap?: ViewAction
 }
 
 /** Opaque sRGB only. The app derives light/dark colours and corrects text contrast. */

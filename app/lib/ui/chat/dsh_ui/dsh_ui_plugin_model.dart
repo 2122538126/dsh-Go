@@ -231,7 +231,7 @@ final class DshUiAssetImage extends DshUiImageSource {
 
 /// `image`：图片。[source] 为 null 时画「图片无法显示」。
 final class DshUiImage extends DshUiNode {
-  const DshUiImage({required super.path, required this.source, this.alt, this.aspect, this.caption});
+  const DshUiImage({required super.path, required this.source, this.alt, this.aspect, this.caption, this.tap});
 
   final DshUiImageSource? source;
   final String? alt;
@@ -239,6 +239,10 @@ final class DshUiImage extends DshUiNode {
   /// 宽 / 高（0.25–4）。
   final double? aspect;
   final String? caption;
+
+  /// 点按时回传的动作（面板里才有）：参数会补上 `{x, y, rx, ry}` —— 图片盒子
+  /// 内的逻辑像素和 0–1 比例。插件据此把一张图当视口用。
+  final DshUiAction? tap;
 }
 
 /// 插件视图里需要数组的组件拿到空数组或取不到：一行「暂无数据」，不算错。
@@ -652,6 +656,7 @@ DshUiNode _image(Map<String, Object?> raw, String path, _Ctx ctx) {
     alt: _optionalText(raw['alt'], DshUiLimits.label),
     aspect: aspect,
     caption: _optionalText(raw['caption'], DshUiLimits.label),
+    tap: _pluginAction(raw['tap'], '$path.tap', ctx),
   );
 }
 
