@@ -1,0 +1,83 @@
+# Builds an x86_64 dsh-go APK for an x86 Android emulator.
+#
+# Fork-only, like build-apk.yml: the upstream repository ships signed release
+# APKs by hand and does not accept external pull requests.
+#
+# Why a separate workflow: the published APK carries the arm64-v8a runtime
+# (arm64 Ubuntu rootfs + arm64 Node). An x86_64 emulator cannot execute that
+# through Android's ARM translation reliably, so the engine never prints its
+# startup token. Here the runtime is built for x86_64 on the runner itself.
+name: Build APK (x86_64)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [local-v110]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-apk-x64-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.47.7
+  NODE_VERSION: 24.22.1
+  GRADLE_VERSION: 9.3.1
+  TZ: Asia/Shanghai
+
+jobs:
+  apk:
+    name: Release x86_64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Build the x86_64 runtime (Ubuntu base + Node + DSH)
+        run: |
+          bash runtime/build-runtime.sh x86_64
+
+      - name: Flutter dependencies and Android paths
+        working-directory: app
+        run: |
+          flutter pub get
+          printf 'sdk.dir=%s\nflutter.sdk=%s\n' "$ANDROID_HOME" "$FLUTTER_ROOT" > android/local.properties
+
+      - name: Build the release x86_64 APK
+        run: |
+          CODE=$(python3 tooling/build_number.py)
+          cd app
+          flutter build apk --release --flavor x64 --target-platform android-x64 \
+            --build-name 1.1.0 --build-number "$CODE" \
+            --dart-define=DSH_APP_VERSION="1.1.0+$CODE"
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-go-x64-release
+          path: app/build/app/outputs/flutter-apk/app-x64-release.apk
+          if-no-files-found: error
+          retention-days: 7
