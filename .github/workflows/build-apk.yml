@@ -26,7 +26,7 @@ env:
 
 jobs:
   apk:
-    name: Debug arm64 APK
+    name: Release arm64 APK
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -64,14 +64,50 @@ jobs:
         run: |
           flutter analyze --no-pub lib/ui/chat/dsh_ui
 
-      - name: Build the debug arm64 APK
+      - name: Fetch the matching official release for its runtime bundle
         run: |
-          bash tooling/build-apk.sh --debug -f arm64
+          bash -c '
+            set -euo pipefail
+            url="https://github.com/ccch1mneyyy/dsh-Go/releases/download/v1.1.0/dsh-go-1.1.0-arm64.apk"
+            for i in 1 2 3 4 5; do
+              curl -fSL --retry 3 --connect-timeout 20 -o /tmp/official.apk "$url" && break
+              echo "retry $i"; sleep 5
+            done
+            python3 - <<"EOF"
+import zipfile, os, shutil
+z = zipfile.ZipFile("/tmp/official.apk")
+root = "runtime/out/arm64-v8a"
+assets = os.path.join(root, "assets")
+jni = os.path.join(root, "jniLibs", "arm64-v8a")
+os.makedirs(assets, exist_ok=True)
+os.makedirs(jni, exist_ok=True)
+for n in z.namelist():
+    if n.startswith("assets/runtime/"):
+        dst = os.path.join(assets, n[len("assets/"):])
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with z.open(n) as s, open(dst, "wb") as d:
+            shutil.copyfileobj(s, d)
+for w in ["libandroid-shmem.so","libproot-loader.so","libproot.so","libtalloc.so","libtawcroot.so"]:
+    n = "lib/arm64-v8a/" + w
+    if n in z.namelist():
+        with z.open(n) as s, open(os.path.join(jni, w), "wb") as d:
+            shutil.copyfileobj(s, d)
+print("runtime bundle staged")
+EOF
+          '
+
+      - name: Build the release arm64 APK
+        run: |
+          CODE=$(python3 tooling/build_number.py)
+          cd app
+          flutter build apk --release --flavor arm64 --target-platform android-arm64 \
+            --build-name 1.1.0 --build-number "$CODE" \
+            --dart-define=DSH_APP_VERSION="1.1.0+$CODE"
 
       - name: Upload the APK
         uses: actions/upload-artifact@v4
         with:
-          name: dsh-go-arm64-debug
-          path: app/build/app/outputs/flutter-apk/*.apk
+          name: dsh-go-arm64-release
+          path: app/build/app/outputs/flutter-apk/app-arm64-release.apk
           if-no-files-found: error
           retention-days: 7
