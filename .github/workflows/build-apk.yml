@@ -9,7 +9,7 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
-    branches: [ego-native-view]
+    branches: [ego-native-view, local-v110]
 
 permissions:
   contents: read
