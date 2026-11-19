@@ -123,19 +123,20 @@ jobs:
           unzip -l "$APK" | grep -q 'lib/arm64-v8a/libproot.so' \
             || { echo '缺 libproot.so'; exit 1; }
           unzip -p "$APK" lib/arm64-v8a/libapp.so > /tmp/libapp.so
-          fail=0
-          # 浏览器页面独有的文案，中文版；AOT 会保留字符串常量。
-          for mark in '输入网址或搜索内容' '新建标签页' '停止加载'; do
-            if grep -aq "$mark" /tmp/libapp.so; then
-              echo "OK  找到浏览器文案: $mark"
-            else
-              echo "MISS 找不到: $mark"; fail=1
-            fi
-          done
-          # 运行时 manifest 里的 DSH 版本，证明 rootfs 是这次构建的
+          # release 是 AOT：Dart 字符串在 libapp.so 里是 UTF-16LE，普通的
+          # grep 中文（UTF-8）一定找不到，要用 Python 按 UTF-16 查。
+          python3 - <<'PY'
+          data = open('/tmp/libapp.so', 'rb').read()
+          marks = ['输入网址或搜索内容', '新建标签页', '停止加载']
+          missing = [m for m in marks if m.encode('utf-16-le') not in data]
+          for m in marks:
+              print(('MISS ' if m in missing else 'OK  找到浏览器文案: ') + m)
+          if missing or b'BrowserPage' not in data:
+              raise SystemExit('浏览器代码没进包')
+          print('OK  BrowserPage 在 libapp.so 里')
+          PY
           unzip -p "$APK" assets/runtime/manifest.json | head -c 200 > /dev/null
           echo "OK  运行时 manifest 可读"
-          [ "$fail" = 0 ] || { echo '浏览器代码没进包'; exit 1; }
           echo '=== 全部校验通过 ==='
           sha256sum "$APK"
 
