@@ -39,5 +39,14 @@
   "webTargetCordisMissing": "Couldn’t find the Cordis panel. The plugin may have been removed.",
   "webTargetNewChatFailed": "Couldn’t start a chat. You’re on the DSH Web home page.",
   "webTargetPageFailed": "Couldn’t open this page. You’re on the DSH Web home page.",
-  "webConnectHostFirst": "Connect to “{name}” to open DSH Web"
+  "webConnectHostFirst": "Connect to “{name}” to open DSH Web",
+  "browserTitle": "Browser",
+  "browserBack": "Back",
+  "browserForward": "Forward",
+  "browserStop": "Stop loading",
+  "browserAddressHint": "Enter an address or search",
+  "browserNewTab": "New tab",
+  "browserUntitled": "New tab",
+  "browserEmpty": "Enter an address to start browsing",
+  "browserLoadFailed": "Couldn’t open this page"
 }
