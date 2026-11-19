@@ -85,6 +85,11 @@ jobs:
           flutter pub get --enforce-lockfile
           printf 'sdk.dir=%s\nflutter.sdk=%s\n' "$ANDROID_HOME" "$FLUTTER_ROOT" > android/local.properties
 
+      # arb 是文案输入，app/lib/l10n/gen 是生成物（仓库里已提交）。加了新文案必须
+      # 重新生成，否则 `l10n.browserTitle` 这类引用不存在，编译直接失败。
+      - name: Generate l10n
+        run: python3 app/tool/l10n_merge.py
+
       # Ubuntu base / Node / npm 包都下载到 runtime/.cache，命中后省 10 分钟。
       - name: Cache runtime downloads
         uses: actions/cache@v4
