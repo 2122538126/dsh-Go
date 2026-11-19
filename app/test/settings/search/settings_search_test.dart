@@ -325,6 +325,7 @@ void main() {
               alignment: Alignment.bottomCenter,
               child: IdentityBar(
                 onHost: () {},
+                onBrowser: () {},
                 onFeatures: () {},
                 onSettings: () => tapped++,
                 onSettingsHold: () => held++,
