@@ -46,6 +46,7 @@ import '../star/star_prompt_host.dart';
 import '../theme/theme.dart';
 import '../update/update_launch_check.dart';
 import '../wallpaper/wallpaper_backdrop.dart';
+import '../web/browser_page.dart';
 import '../web/local_web_screen.dart';
 import 'adaptive/adaptive_layout.dart';
 import 'adaptive/adaptive_rail.dart';
@@ -235,6 +236,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
   void _openDestination(DrawerDestination destination) {
     final page = switch (destination) {
       DrawerDestination.web => const LocalWebScreen(),
+      DrawerDestination.browser => const BrowserPage(),
       DrawerDestination.remote => const RemoteScreen(),
       DrawerDestination.plugins => const PluginsScreen(),
       DrawerDestination.engine => const EngineScreen(),
