@@ -46,5 +46,14 @@
         "type": "String"
       }
     }
-  }
+  },
+  "browserTitle": "浏览器",
+  "browserBack": "后退",
+  "browserForward": "前进",
+  "browserStop": "停止加载",
+  "browserAddressHint": "输入网址或搜索内容",
+  "browserNewTab": "新建标签页",
+  "browserUntitled": "新标签页",
+  "browserEmpty": "输入网址开始浏览",
+  "browserLoadFailed": "打不开这个页面"
 }
