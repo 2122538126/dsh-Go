@@ -30,9 +30,12 @@ class _BrowserPageState extends State<BrowserPage> {
   final List<_BrowserTab> _tabs = [];
   int _active = 0;
 
-  /// The address being typed; null when the bar is not being edited.
-  TextEditingController? _address;
-  FocusNode? _addressFocus;
+  /// The address bar's own field, reused for every edit. The node is never
+  /// disposed from inside its own focus callback (that is what froze the page
+  /// when back left the bar).
+  final _address = TextEditingController();
+  final _addressFocus = FocusNode();
+  bool _editing = false;
 
   /// The app's look, read once per build of the tree rather than in
   /// [initState] where there is no [Theme] yet.
@@ -44,6 +47,7 @@ class _BrowserPageState extends State<BrowserPage> {
   @override
   void initState() {
     super.initState();
+    _addressFocus.addListener(_onAddressFocus);
     _addTab();
     final start = widget.initialUrl;
     if (start != null && start.trim().isNotEmpty) {
@@ -69,8 +73,8 @@ class _BrowserPageState extends State<BrowserPage> {
       tab.guard.dispose();
       unawaited(tab.guard.destroy());
     }
-    _address?.dispose();
-    _addressFocus?.dispose();
+    _address.dispose();
+    _addressFocus.dispose();
     super.dispose();
   }
 
@@ -192,29 +196,26 @@ class _BrowserPageState extends State<BrowserPage> {
   }
 
   void _editAddress() {
-    final address = _address ??= TextEditingController();
     final text = _tab?.url ?? '';
-    address
+    _address
       ..text = text
       ..selection = TextSelection(baseOffset: 0, extentOffset: text.length);
-    _addressFocus?.dispose();
-    _addressFocus = FocusNode()..addListener(_onAddressFocus);
-    setState(() {});
+    setState(() => _editing = true);
+    _addressFocus.requestFocus();
   }
 
+  /// The field lost focus (a tap on the page, or back leaving the bar): show
+  /// the address again. The node stays alive — disposing it here would run
+  /// inside its own listener.
   void _onAddressFocus() {
-    if (_addressFocus?.hasFocus ?? false) return;
-    _leaveAddress();
+    if (_addressFocus.hasFocus || !mounted || !_editing) return;
+    setState(() => _editing = false);
   }
 
   void _leaveAddress() {
-    final focus = _addressFocus;
-    if (focus == null) return;
-    _addressFocus = null;
-    focus
-      ..removeListener(_onAddressFocus)
-      ..dispose();
-    if (mounted) setState(() {});
+    if (!_editing) return;
+    _addressFocus.unfocus();
+    if (mounted) setState(() => _editing = false);
   }
 
   void _submitAddress(String value) {
@@ -231,21 +232,35 @@ class _BrowserPageState extends State<BrowserPage> {
     final loading = tab?.loading ?? false;
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
+      onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        if (_addressFocus != null) {
+        if (_editing) {
           _leaveAddress();
           return;
         }
-        if (tab != null && tab.canGoBack) {
-          unawaited(tab.controller?.goBack());
-          return;
+        // Ask the WebView now instead of trusting the cached flag: a page that
+        // navigates with pushState never finishes loading, so `canGoBack` would
+        // stay true and every press would re-run the same no-op goBack().
+        final current = _tab;
+        final controller = current?.controller;
+        if (current != null && controller != null && !current.gone) {
+          var canGoBack = false;
+          try {
+            canGoBack = await controller.canGoBack();
+          } catch (_) {}
+          if (!mounted) return;
+          if (canGoBack) {
+            await controller.goBack().catchError((_) {});
+            return;
+          }
         }
         if (_tabs.length > 1) {
           _closeTab(_active);
           return;
         }
-        Navigator.of(context).maybePop();
+        // pop(), not maybePop(): canPop is false, so maybePop() would only call
+        // this callback again and never leave.
+        if (mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
         backgroundColor: colors.surface,
@@ -256,7 +271,7 @@ class _BrowserPageState extends State<BrowserPage> {
               child: _AddressBar(
                 url: tab?.url,
                 loading: loading,
-                editing: _addressFocus,
+                editing: _editing ? _addressFocus : null,
                 address: _address,
                 onEdit: _editAddress,
                 onSubmit: _submitAddress,
