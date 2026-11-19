@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext only for the local DSH server on loopback; everything else stays HTTPS-only. -->
+<!-- Cleartext for the local DSH server on loopback, and for plain-http sites in
+     the built-in browser: a WebView obeys this policy too, so without the base
+     rule every http:// page would fail with ERR_CLEARTEXT_NOT_PERMITTED. The
+     app's own calls still go to https or to loopback. -->
 <network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">127.0.0.1</domain>
         <domain includeSubdomains="false">localhost</domain>
