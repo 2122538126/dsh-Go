@@ -241,7 +241,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
     // 浏览器不是路由：它常驻在 Stack 里，这里只是把它显示出来，
     // 所以回对话再进来时页面、标签、滚动位置都还在。
     if (destination == DrawerDestination.browser) {
-      ref.read(browserVisibleProvider.notifier).state = true;
+      ref.read(browserVisibleProvider.notifier).show();
       Future<void>.delayed(AppMotion.slow, () {
         if (!mounted) return;
         _drawer.value = 0;
@@ -339,7 +339,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
             if (ref.read(browserVisibleProvider)) {
               final browser = _browserKey.currentState;
               if (browser == null) {
-                ref.read(browserVisibleProvider.notifier).state = false;
+                ref.read(browserVisibleProvider.notifier).hide();
                 return;
               }
               unawaited(browser.handleBack());
@@ -485,7 +485,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
                         offstage: !ref.watch(browserVisibleProvider),
                         child: BrowserPage(
                           key: _browserKey,
-                          onLeave: () => ref.read(browserVisibleProvider.notifier).state = false,
+                          onLeave: () => ref.read(browserVisibleProvider.notifier).hide(),
                         ),
                       ),
                     ],
