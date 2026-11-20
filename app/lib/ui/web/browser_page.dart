@@ -424,9 +424,12 @@ class _AddressBar extends StatelessWidget {
                     focusNode: focus,
                     autofocus: true,
                     textInputAction: TextInputAction.go,
-                    keyboardType: TextInputType.url,
-                    autocorrect: false,
-                    enableSuggestions: false,
+                    // 最普通的文本输入：`url` 键盘 + 关联想 + 关纠错会被 MIUI
+                    // 判成敏感输入框，弹出不让打字的安全键盘。
+                    keyboardType: TextInputType.text,
+                    autocorrect: true,
+                    enableSuggestions: true,
+                    enableIMEPersonalizedLearning: true,
                     style: Theme.of(context).textTheme.bodyMedium,
                     decoration: InputDecoration(
                       isDense: true,
