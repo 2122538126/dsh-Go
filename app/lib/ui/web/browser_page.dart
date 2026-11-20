@@ -12,21 +12,27 @@ import 'web_view_guard.dart';
 /// A browser in the app: one page per tab, an address bar over it and a tab
 /// strip under it.
 ///
-/// It is a page of its own — pushed over the chat and popped back to it — so
-/// the app's screens, its engine and its sessions keep running exactly as they
-/// were while a site is open. Its WebViews go through [WebViewGuard] like every
-/// other one: a crashed renderer closes this browser's pages, not the app.
+/// The shell keeps this mounted and only hides it ([browserVisibleProvider]),
+/// so leaving for the chat keeps every tab's page — scroll position, forms,
+/// running scripts — and coming back costs nothing. Back presses reach it
+/// through [BrowserPageState.handleBack]. Its WebViews go through
+/// [WebViewGuard] like every other one: a crashed renderer closes this
+/// browser's pages, not the app.
 class BrowserPage extends StatefulWidget {
-  const BrowserPage({super.key, this.initialUrl});
+  const BrowserPage({super.key, this.initialUrl, required this.onLeave});
 
   /// Opened on this address instead of the start page.
   final String? initialUrl;
 
+  /// Back found nothing left to do here: the host hides the browser and shows
+  /// the chat again.
+  final VoidCallback onLeave;
+
   @override
-  State<BrowserPage> createState() => _BrowserPageState();
+  State<BrowserPage> createState() => BrowserPageState();
 }
 
-class _BrowserPageState extends State<BrowserPage> {
+class BrowserPageState extends State<BrowserPage> {
   final List<_BrowserTab> _tabs = [];
   int _active = 0;
 
@@ -225,44 +231,43 @@ class _BrowserPageState extends State<BrowserPage> {
     unawaited(_open(tab, value));
   }
 
+  /// One press of back, in this order: leave the address bar, go back in the
+  /// page, close a tab, and finally [BrowserPage.onLeave] — the chat again.
+  ///
+  /// The page is asked live rather than from the cached flag: a site that
+  /// navigates with pushState never "finishes loading", so a cached
+  /// `canGoBack` stays true and every press would re-run the same no-op.
+  Future<void> handleBack() async {
+    if (_editing) {
+      _leaveAddress();
+      return;
+    }
+    final current = _tab;
+    final controller = current?.controller;
+    if (current != null && controller != null && !current.gone) {
+      var canGoBack = false;
+      try {
+        canGoBack = await controller.canGoBack();
+      } catch (_) {}
+      if (!mounted) return;
+      if (canGoBack) {
+        await controller.goBack().catchError((_) {});
+        return;
+      }
+    }
+    if (_tabs.length > 1) {
+      _closeTab(_active);
+      return;
+    }
+    if (mounted) widget.onLeave();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tab = _tab;
     final colors = Theme.of(context).colorScheme;
     final loading = tab?.loading ?? false;
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (_editing) {
-          _leaveAddress();
-          return;
-        }
-        // Ask the WebView now instead of trusting the cached flag: a page that
-        // navigates with pushState never finishes loading, so `canGoBack` would
-        // stay true and every press would re-run the same no-op goBack().
-        final current = _tab;
-        final controller = current?.controller;
-        if (current != null && controller != null && !current.gone) {
-          var canGoBack = false;
-          try {
-            canGoBack = await controller.canGoBack();
-          } catch (_) {}
-          if (!mounted) return;
-          if (canGoBack) {
-            await controller.goBack().catchError((_) {});
-            return;
-          }
-        }
-        if (_tabs.length > 1) {
-          _closeTab(_active);
-          return;
-        }
-        // pop(), not maybePop(): canPop is false, so maybePop() would only call
-        // this callback again and never leave.
-        if (mounted) Navigator.of(context).pop();
-      },
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: colors.surface,
         body: Column(
           children: [
@@ -304,7 +309,6 @@ class _BrowserPageState extends State<BrowserPage> {
             ),
           ],
         ),
-      ),
     );
   }
 
