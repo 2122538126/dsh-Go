@@ -46,6 +46,7 @@ import '../star/star_prompt_host.dart';
 import '../theme/theme.dart';
 import '../update/update_launch_check.dart';
 import '../wallpaper/wallpaper_backdrop.dart';
+import '../../state/browser_state.dart';
 import '../web/browser_page.dart';
 import '../web/local_web_screen.dart';
 import 'adaptive/adaptive_layout.dart';
@@ -233,10 +234,24 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
     }
   }
 
+  /// The browser stays mounted in the Stack; this is how back reaches it.
+  final _browserKey = GlobalKey<BrowserPageState>();
+
   void _openDestination(DrawerDestination destination) {
+    // 浏览器不是路由：它常驻在 Stack 里，这里只是把它显示出来，
+    // 所以回对话再进来时页面、标签、滚动位置都还在。
+    if (destination == DrawerDestination.browser) {
+      ref.read(browserVisibleProvider.notifier).state = true;
+      Future<void>.delayed(AppMotion.slow, () {
+        if (!mounted) return;
+        _drawer.value = 0;
+        _quickPanel.value = 0;
+      });
+      return;
+    }
     final page = switch (destination) {
       DrawerDestination.web => const LocalWebScreen(),
-      DrawerDestination.browser => const BrowserPage(),
+      DrawerDestination.browser => throw StateError('browser is shown above, not pushed'),
       DrawerDestination.remote => const RemoteScreen(),
       DrawerDestination.plugins => const PluginsScreen(),
       DrawerDestination.engine => const EngineScreen(),
@@ -316,9 +331,20 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
     return SafeModeNoticeListener(
       child: PhoneStopWatcher(
         child: PopScope(
-          canPop: !_open && !_quickPanelOpen && !(selecting && sidebar),
+          canPop: !_open && !_quickPanelOpen && !(selecting && sidebar) && !ref.watch(browserVisibleProvider),
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
+            // 浏览器先消化这一次返回：退出地址栏 → 页面后退 → 关标签，
+            // 都没得退了才隐藏它、回到对话。
+            if (ref.read(browserVisibleProvider)) {
+              final browser = _browserKey.currentState;
+              if (browser == null) {
+                ref.read(browserVisibleProvider.notifier).state = false;
+                return;
+              }
+              unawaited(browser.handleBack());
+              return;
+            }
             final selection = ref.read(drawerSelectionProvider.notifier);
             if (_quickPanelOpen) {
               _closeQuickPanel();
@@ -451,6 +477,15 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
                             ),
                             onClose: _closeQuickPanel,
                           ),
+                        ),
+                      ),
+                      // 内置浏览器：常驻在这一层，回对话只是 Offstage 隐藏，
+                      // WebView / 标签 / 滚动位置都留着，再点进来立刻是原页面。
+                      Offstage(
+                        offstage: !ref.watch(browserVisibleProvider),
+                        child: BrowserPage(
+                          key: _browserKey,
+                          onLeave: () => ref.read(browserVisibleProvider.notifier).state = false,
                         ),
                       ),
                     ],
