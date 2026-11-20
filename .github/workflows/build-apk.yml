@@ -11,10 +11,10 @@
 #   KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD
 name: Build APK
 
+# 只手动触发：push 自动跑会连带触发仓库里所有 push 工作流（CI / iOS / OHOS），
+# 白烧额度。
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
