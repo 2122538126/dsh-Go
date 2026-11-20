@@ -5,4 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// The browser is not a pushed route: it stays mounted in the shell's Stack and
 /// this only hides it, so leaving for the chat keeps every tab's page — its
 /// scroll position, forms and running scripts — and coming back costs nothing.
-final browserVisibleProvider = StateProvider<bool>((ref) => false);
+class BrowserVisibleController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void show() => state = true;
+  void hide() => state = false;
+}
+
+final browserVisibleProvider = NotifierProvider<BrowserVisibleController, bool>(BrowserVisibleController.new);
