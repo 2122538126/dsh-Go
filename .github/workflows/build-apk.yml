@@ -55,13 +55,13 @@ jobs:
           cache: true
 
       # 固定签名：没有 key.properties 时 release 回退到 debug 签名，而 runner
-      # 每次都是全新的机器，默认 keystore 每个包都不一样 → 装新版必须卸载，
-      # 数据全丢。把它缓存住，之后每个包的签名就一致了。
-      - name: Cache debug keystore (stable signature across builds)
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/.android/debug.keystore
-          key: android-debug-keystore-v1
+      # 每次都是全新机器、默认 keystore 每个包都不同 → 装新版必须卸载、丢数据。
+      # 仓库里带了一份公开的 debug keystore，这里铺到 AGP 找的位置。
+      - name: Pin the signing key (so updates install over the old build)
+        run: |
+          mkdir -p "$HOME/.android"
+          cp .github/dsh-debug.keystore "$HOME/.android/debug.keystore"
+          chmod 600 "$HOME/.android/debug.keystore"
 
       # tawcroot 的 native 构建按版本号校验 NDK。
       - name: Android NDK
