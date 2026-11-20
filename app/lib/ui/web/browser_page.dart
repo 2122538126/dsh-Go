@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -12,6 +13,10 @@ import 'web_view_guard.dart';
 /// A browser in the app: one page per tab, an address bar over it and a tab
 /// strip under it.
 ///
+/// 当前浏览器页面的 state，给 loopback HTTP 桥（[BrowserBridge]）用。
+/// 浏览器在 shell 里常驻，所以建好之后一直在，直到 App 退出。
+BrowserPageState? activeBrowser;
+
 /// The shell keeps this mounted and only hides it ([browserVisibleProvider]),
 /// so leaving for the chat keeps every tab's page — scroll position, forms,
 /// running scripts — and coming back costs nothing. Back presses reach it
@@ -53,6 +58,7 @@ class BrowserPageState extends State<BrowserPage> {
   @override
   void initState() {
     super.initState();
+    activeBrowser = this;
     _addressFocus.addListener(_onAddressFocus);
     _addTab();
     final start = widget.initialUrl;
@@ -75,6 +81,7 @@ class BrowserPageState extends State<BrowserPage> {
 
   @override
   void dispose() {
+    if (identical(activeBrowser, this)) activeBrowser = null;
     for (final tab in _tabs) {
       tab.guard.dispose();
       unawaited(tab.guard.destroy());
@@ -229,6 +236,47 @@ class BrowserPageState extends State<BrowserPage> {
     _leaveAddress();
     if (tab == null || value.trim().isEmpty) return;
     unawaited(_open(tab, value));
+  }
+
+  /// 在当前标签打开 [url]。给 agent 的浏览器工具用（见 BrowserBridge）。
+  Future<void> openUrl(String url) async {
+    final tab = _tab;
+    if (tab == null) return;
+    await _open(tab, url);
+  }
+
+  /// 当前标签的地址、标题与标签数。
+  Map<String, Object?> current() {
+    final tab = _tab;
+    return <String, Object?>{
+      'url': tab?.url,
+      'title': tab?.title ?? '',
+      'tabs': _tabs.length,
+      'loading': tab?.loading ?? false,
+    };
+  }
+
+  /// 当前页面能看到的正文（截断），读不到就是空串。
+  Future<String> readText() async {
+    final controller = _tab?.controller;
+    if (controller == null) return '';
+    Object? raw;
+    try {
+      raw = await controller.runJavaScriptReturningResult(
+        'document.body ? document.body.innerText.slice(0, 20000) : ""',
+      );
+    } catch (_) {
+      return '';
+    }
+    final text = raw.toString();
+    if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) {
+      try {
+        return jsonDecode(text) as String;
+      } on FormatException {
+        return text.substring(1, text.length - 1);
+      }
+    }
+    return text;
   }
 
   /// One press of back, in this order: leave the address bar, go back in the
