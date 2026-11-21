@@ -114,8 +114,10 @@ jobs:
       - name: Build Linux runtime (PRoot + Node + DSH)
         run: bash runtime/build-runtime.sh arm64-v8a
 
+      # 1.3.0 起 release 默认要带 licensed companion pack（仓库里没有、需要授权文件），
+      # 没有就 --no-companion：APK 照常出，伴侣资源不打包。
       - name: Build APK
-        run: bash tooling/build-apk.sh --release -f arm64
+        run: bash tooling/build-apk.sh --release -f arm64 --no-companion
 
       # release 是 AOT：Dart 在 libapp.so 里，没有 kernel_blob。先上传再校验，
       # 校验写错了也不会把包卡在运行器上。
