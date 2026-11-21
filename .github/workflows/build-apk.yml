@@ -62,6 +62,16 @@ jobs:
           mkdir -p "$HOME/.android"
           cp .github/dsh-debug.keystore "$HOME/.android/debug.keystore"
           chmod 600 "$HOME/.android/debug.keystore"
+          # 只铺 ~/.android 不够：runner 上 AGP 会自己生成一个，包装出来签名还是变。
+          # 写 key.properties 让 release 显式用仓库里这份（build.gradle.kts 里
+          # release 走 "release" 配置的条件就是 key.properties 非空）。
+          cat > app/android/key.properties <<EOF
+          storeFile=$GITHUB_WORKSPACE/.github/dsh-debug.keystore
+          storePassword=android
+          keyAlias=androiddebugkey
+          keyPassword=android
+          EOF
+          keytool -list -keystore "$GITHUB_WORKSPACE/.github/dsh-debug.keystore" -storepass android 2>/dev/null | grep -i "fingerprint" || true
 
       # tawcroot 的 native 构建按版本号校验 NDK。
       - name: Android NDK
