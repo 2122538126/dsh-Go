@@ -18,6 +18,7 @@ import 'ui/fx/waves/distortion_wave.dart';
 import 'ui/settings/font_licenses.dart';
 import 'ui/tavern/tavern_home_page.dart';
 import 'ui/theme/theme.dart';
+import 'ui/web/browser_bridge.dart';
 
 Future<void> main() => runWithFrameProbe(_startApp);
 
@@ -41,4 +42,6 @@ Future<void> _startApp() async {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(dshSystemOverlay(PlatformDispatcher.instance.platformBrightness));
   runApp(const ProviderScope(child: DshApp()));
+  // 内置浏览器的 agent 控制口：loopback HTTP，PRoot 里的工具用 curl 就能操作浏览器。
+  unawaited(BrowserBridge.start());
 }

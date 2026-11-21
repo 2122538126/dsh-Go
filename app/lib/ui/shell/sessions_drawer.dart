@@ -251,6 +251,7 @@ class SessionsDrawer extends ConsumerWidget {
                         child: IdentityBar(
                           onHost: () => showHostSheet(context, onManage: () => onOpen(DrawerDestination.remote)),
                           onLocalDetails: () => onOpen(DrawerDestination.engine),
+                          onBrowser: () => onOpen(DrawerDestination.browser),
                           onFeatures: () => onOpen(DrawerDestination.features),
                           onSettings: () => onOpen(DrawerDestination.settings),
                           onSettingsHold: () => onOpen(DrawerDestination.settingsSearch),
@@ -943,11 +944,12 @@ class _RemoteEmptyState extends ConsumerWidget {
 }
 
 /// The drawer's footer: the host icon opens its details; the name and dropdown
-/// switch hosts. 全部功能 and 设置 follow as two equal round buttons.
+/// switch hosts. 浏览器, 全部功能 and 设置 follow as equal round buttons.
 class IdentityBar extends ConsumerWidget {
   const IdentityBar({
     super.key,
     required this.onHost,
+    required this.onBrowser,
     required this.onFeatures,
     required this.onSettings,
     this.onSettingsHold,
@@ -958,6 +960,9 @@ class IdentityBar extends ConsumerWidget {
 
   /// Local hosts have engine details, not a remote network path.
   final VoidCallback? onLocalDetails;
+
+  /// 浏览器: the app's own browser, over the chat and gone with back.
+  final VoidCallback onBrowser;
 
   /// 全部功能: what there is to do now. (网页版 is in 全部功能, in 设置 ›
   /// 界面 and on the brand row's switch.)
@@ -1077,6 +1082,8 @@ class IdentityBar extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          _RoundButton(icon: AppIcons.browser, tooltip: l10n.browserTitle, onTap: onBrowser),
           const SizedBox(width: 8),
           _RoundButton(icon: AppIcons.allFeatures, tooltip: l10n.hubSettingsAllFeatures, onTap: onFeatures),
           const SizedBox(width: 8),
